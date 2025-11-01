@@ -13,63 +13,112 @@ from datetime import datetime
 # Set page config with a new icon
 st.set_page_config(page_title="MiniFin Secure App", layout="wide", page_icon="🛡️")
 
+# --- NEW: Define Timeout ---
+# Set the idle timeout to 5 minutes for the assignment
+IDLE_TIMEOUT_MINUTES = 5
+
 # Generate a secret key for encryption.
 APP_ENCRYPTION_KEY = b'p_Z1c-PqM0g2xV8t9y-J_uA6wB5nE1oI_zS4cQ7kR3g='
 cipher_suite = Fernet(APP_ENCRYPTION_KEY)
 
-# --- THEME & STYLING (NEW!) ---
+# --- THEME & STYLING (High Contrast: Dark BG, Light Cards) ---
 
 def load_css():
-    """Injects custom CSS for a modern, professional 'FinTech' theme."""
+    """Injects custom CSS for a high-contrast theme."""
     css = """
     <style>
-        /* Main Page Background: Light, professional grey-blue */
+        /* Main Page Background: Dark blue-grey */
         [data-testid="stAppViewContainer"] {
-            background-color: #F0F4F8;
+            background-color: #1A202C;
+            color: #FFFFFF; /* Default text color (for text outside cards) */
         }
 
-        /* Sidebar: Clean white, with a subtle border */
+        /* --- MODIFIED: Sidebar set to WHITE to match cards --- */
         [data-testid="stSidebar"] {
             background-color: #FFFFFF;
             border-right: 1px solid #E0E0E0;
         }
 
-        /* Titles: Strong, dark professional blue */
+        /* Titles: Light, prominent blue (for text outside cards) */
         h1, h2 {
-            color: #0D47A1;
+            color: #79C0FF;
         }
 
-        /* Form & Metric "Cards": White, with a cleaner shadow and border */
+        /* All other text (paragraphs, labels outside cards) */
+        body, .stApp, [data-testid="stMarkdown"]:not(div[data-testid="stForm"] [data-testid="stMarkdown"]) {
+            color: #FFFFFF;
+        }
+        
+        /* --- Form & Metric "Cards": Set to WHITE --- */
         [data-testid="stForm"], [data-testid="stMetric"] {
-            background-color: #FFFFFF;
+            background-color: #FFFFFF; /* Light card background */
             border-radius: 12px;
             padding: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.07);
-            border: 1px solid #EAEAEA;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 1px solid #4A5568;
         }
         
-        /* Ensure metric cards have a consistent height */
-        [data-testid="stMetric"] {
-             padding: 20px;
+        /* --- Text INSIDE cards: Set to DARK --- */
+        
+        /* Target input labels (Username, Email, etc.) */
+        [data-testid="stWidgetLabel"] label {
+            color: #1A202C !important; /* Dark text for light card */
+        }
+        
+        /* Target metric labels and values */
+        [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
+            color: #1A202C; /* Dark text for light card */
         }
 
-        /* Custom Button Style: Refined blue gradient */
-        .stButton > button {
-            border: none;
-            border-radius: 8px;
-            padding: 10px 24px;
-            color: white;
-            background: linear-gradient(90deg, #0D47A1, #1976D2);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        /* Target markdown/text inside forms (e.g., "This data is stored...") */
+        [data-testid="stForm"] [data-testid="stMarkdown"] p,
+        [data-testid="stForm"] [data-testid="stMarkdown"] {
+             color: #1A202C !important; /* Dark text for light card */
+        }
+
+        /* Target the text the user types into inputs */
+        .stTextInput input, .stTextArea textarea, .stSelectbox div[role="combobox"] {
+            color: #1A202C;
         }
         
-        /* Interactive Button Hover Effect */
-        .stButton > button:hover {
-            transform: scale(1.03);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
-            opacity: 0.9;
+        /* --- End of Text-inside-card rules --- */
+        
+        /* --- NEW: Text INSIDE sidebar: Set to DARK --- */
+        [data-testid="stSidebar"] [data-testid="stMarkdown"],
+        [data-testid="stSidebar"] [data-testid="stHeader"],
+        [data-testid="stSidebar"] [data-testid="stRadio"] label,
+        [data-testid="stSidebar"] [data-testid="stTitle"] {
+            color: #1A202C !important; /* Dark text for light sidebar */
         }
+        /* --- End of new rule --- */
+
+
+        /* Universal Button Gradient Style */
+button[kind="primary"], 
+button[kind="secondary"],
+.stButton > button,
+.stFormSubmitButton > button,
+[data-testid="baseButton-primary"],
+[data-testid="baseButton-secondary"] {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 24px;
+    color: white !important;
+    background: linear-gradient(90deg, #1976D2, #38A169) !important;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+/* Hover effect */
+button[kind="primary"]:hover, 
+button[kind="secondary"]:hover,
+.stButton > button:hover,
+.stFormSubmitButton > button:hover {
+    transform: scale(1.03);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    opacity: 0.9;
+}
+       
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
@@ -532,5 +581,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
