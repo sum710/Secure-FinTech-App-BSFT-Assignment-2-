@@ -20,27 +20,46 @@ cipher_suite = Fernet(APP_ENCRYPTION_KEY)
 # --- THEME & STYLING (NEW!) ---
 
 def load_css():
-    """Injects custom CSS for a colorful theme and button styling."""
+    """Injects custom CSS for a modern, professional 'FinTech' theme."""
     css = """
     <style>
-        /* Main Page Background Gradient */
+        /* Main Page Background: Light, professional grey-blue */
         [data-testid="stAppViewContainer"] {
-            background: linear-gradient(180deg, #F0F8FF 0%, #FFFFFF 100%);
+            background-color: #F0F4F8;
         }
 
-        /* Sidebar Styling */
+        /* Sidebar: Clean white, with a subtle border */
         [data-testid="stSidebar"] {
-            background-color: #F0F2F6;
+            background-color: #FFFFFF;
+            border-right: 1px solid #E0E0E0;
         }
 
-        /* Custom Button Style */
+        /* Titles: Strong, dark professional blue */
+        h1, h2 {
+            color: #0D47A1;
+        }
+
+        /* Form & Metric "Cards": White, with a cleaner shadow and border */
+        [data-testid="stForm"], [data-testid="stMetric"] {
+            background-color: #FFFFFF;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.07);
+            border: 1px solid #EAEAEA;
+        }
+        
+        /* Ensure metric cards have a consistent height */
+        [data-testid="stMetric"] {
+             padding: 20px;
+        }
+
+        /* Custom Button Style: Refined blue gradient */
         .stButton > button {
             border: none;
             border-radius: 8px;
             padding: 10px 24px;
             color: white;
-            /* Colorful Gradient! */
-            background: linear-gradient(90deg, #0068C9, #00C9A7);
+            background: linear-gradient(90deg, #0D47A1, #1976D2);
             transition: all 0.3s ease;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
@@ -50,19 +69,6 @@ def load_css():
             transform: scale(1.03);
             box-shadow: 0 6px 12px rgba(0,0,0,0.15);
             opacity: 0.9;
-        }
-
-        /* Form "Cards" Styling */
-        [data-testid="stForm"] {
-            background-color: #FFFFFF;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-        }
-        
-        /* Make titles more prominent */
-        h1, h2 {
-            color: #004a93; /* A darker blue */
         }
     </style>
     """
@@ -173,7 +179,7 @@ def decrypt_data(encrypted_data):
 def show_login_page():
     """Displays the login and registration forms."""
     
-    st.title("Welcome to MiniFin 🔒")
+    st.title("Welcome to MiniFin 🛡️")
     st.caption("A secure FinTech demo app for BSFT-7")
     
     col1, col2 = st.columns(2)
@@ -275,7 +281,7 @@ def show_dashboard():
     st.title(f"Welcome to your Dashboard, {st.session_state.username}! 👋")
     st.caption("This is your secure FinTech application dashboard.")
     
-    # --- NEW: Interactive Metrics ---
+    # --- Interactive Metrics ---
     try:
         conn = sqlite3.connect('fintech_app.db')
         c = conn.cursor()
@@ -295,6 +301,7 @@ def show_dashboard():
             conn.close()
 
     col1, col2 = st.columns(2)
+    # The [data-testid="stMetric"] style from load_css() will apply to these
     col1.metric("Total Transactions", f"{tx_count}")
     col2.metric("Last Logged Action", f"{last_action}")
     st.divider()
@@ -332,6 +339,7 @@ def show_profile_page():
         if current_secret_note_encrypted:
             decrypted_note = decrypt_data(current_secret_note_encrypted)
 
+        # The [data-testid="stForm"] style from load_css() will apply here
         with st.form("profile_update_form"):
             st.write(f"**Username:** `{st.session_state.username}` (cannot be changed)")
             
@@ -360,7 +368,6 @@ def show_profile_page():
                     """, (full_name, email, encrypted_note_to_save, st.session_state.username))
                     conn.commit()
                     
-                    # --- NEW: Toast Notification ---
                     st.toast("Profile updated successfully!", icon="🎉")
                     
                     log_activity(st.session_state.username, "User updated profile")
@@ -384,6 +391,7 @@ def show_transactions_page():
 
     with col1:
         st.header("Add New Transaction ➕")
+        # The [data-testid="stForm"] style from load_css() will apply here
         with st.form("transaction_form"):
             trans_type = st.selectbox("Type", ["Deposit", "Withdrawal"])
             
@@ -414,7 +422,6 @@ def show_transactions_page():
                         conn.commit()
                         conn.close()
                         
-                        # --- NEW: Toast Notification ---
                         st.toast(f"{trans_type} of ${amount:.2f} recorded.", icon="✅")
                         
                         log_activity(st.session_state.username, f"Added transaction: {trans_type} ${amount}")
@@ -457,7 +464,7 @@ def show_activity_log_page():
 # --- MAIN APP LOGIC ---
 
 def main():
-    # --- NEW: Load Custom CSS ---
+    # --- Load Custom CSS ---
     load_css()
 
     # Initialize the database
@@ -473,8 +480,29 @@ def main():
         show_login_page()
     else:
         # If user is logged in, show the main app
-        st.sidebar.title(f"Logged in as: **{st.session_state.username}**")
-        st.sidebar.image("https://i.imgur.com/v801b6n.png", width=100) # A generic logo
+        
+        # --- NEW: SVG Logo (Replaces broken image link) ---
+        # This is a self-contained SVG, so it requires no external files.
+        logo_svg = f"""
+        <div style="display: flex; justify-content: center; padding-bottom: 10px;">
+            <svg width="90" height="90" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#0D47A1;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <path fill="url(#logoGradient)" d="M12 2L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-3z"/>
+                <path fill="#FFFFFF" d="M16.59 7.58L10 14.17l-3.59-3.58L5 12l5 5 8-8-1.41-1.42z"/>
+            </svg>
+        </div>
+        """
+        st.sidebar.markdown(logo_svg, unsafe_allow_html=True)
+        # --- End of New Logo ---
+
+        st.sidebar.title(f"Logged in as:")
+        st.sidebar.header(f"**{st.session_state.username}**")
+        st.sidebar.divider()
         
         # --- Test Case 5: Session Expiry ---
         st.sidebar.info("Note: Streamlit sessions do not auto-expire on idle. Please log out manually.")
@@ -488,7 +516,7 @@ def main():
             st.rerun()
 
         st.sidebar.title("Navigation")
-        # --- NEW: Added icons to navigation ---
+        # --- Added icons to navigation ---
         page_selection = st.sidebar.radio("Go to", 
                                 ["Dashboard 🏠", "My Profile 👤", "Transactions 💸", "Activity Log 📜"])
 
@@ -504,3 +532,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
