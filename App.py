@@ -10,14 +10,64 @@ from datetime import datetime
 
 # --- CONFIG & INITIALIZATION ---
 
-st.set_page_config(page_title="MiniFin Secure App", layout="wide")
+# Set page config with a new icon
+st.set_page_config(page_title="MiniFin Secure App", layout="wide", page_icon="🛡️")
 
-# Generate a secret key for encryption. 
-# In a real app, this key MUST be stored securely, not in the code.
-# For this assignment, we'll define it here.
-# You can generate one using: Fernet.generate_key().decode()
+# Generate a secret key for encryption.
 APP_ENCRYPTION_KEY = b'p_Z1c-PqM0g2xV8t9y-J_uA6wB5nE1oI_zS4cQ7kR3g='
 cipher_suite = Fernet(APP_ENCRYPTION_KEY)
+
+# --- THEME & STYLING (NEW!) ---
+
+def load_css():
+    """Injects custom CSS for a colorful theme and button styling."""
+    css = """
+    <style>
+        /* Main Page Background Gradient */
+        [data-testid="stAppViewContainer"] {
+            background: linear-gradient(180deg, #F0F8FF 0%, #FFFFFF 100%);
+        }
+
+        /* Sidebar Styling */
+        [data-testid="stSidebar"] {
+            background-color: #F0F2F6;
+        }
+
+        /* Custom Button Style */
+        .stButton > button {
+            border: none;
+            border-radius: 8px;
+            padding: 10px 24px;
+            color: white;
+            /* Colorful Gradient! */
+            background: linear-gradient(90deg, #0068C9, #00C9A7);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        /* Interactive Button Hover Effect */
+        .stButton > button:hover {
+            transform: scale(1.03);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+            opacity: 0.9;
+        }
+
+        /* Form "Cards" Styling */
+        [data-testid="stForm"] {
+            background-color: #FFFFFF;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        
+        /* Make titles more prominent */
+        h1, h2 {
+            color: #004a93; /* A darker blue */
+        }
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
 
 # --- DATABASE SETUP ---
 
@@ -64,6 +114,7 @@ def init_db():
     conn.close()
 
 # --- HELPER FUNCTIONS (SECURITY & LOGGING) ---
+# (These functions are unchanged to ensure security is maintained)
 
 def hash_password(password):
     """Hashes a password using bcrypt."""
@@ -123,11 +174,12 @@ def show_login_page():
     """Displays the login and registration forms."""
     
     st.title("Welcome to MiniFin 🔒")
+    st.caption("A secure FinTech demo app for BSFT-7")
     
     col1, col2 = st.columns(2)
 
     with col1:
-        st.header("Login")
+        st.header("Login 🔑")
         
         # Check for login attempts
         if 'login_attempts' not in st.session_state:
@@ -144,8 +196,6 @@ def show_login_page():
 
             if login_button:
                 # --- Test Case 1: SQL Injection ---
-                # This query is parameterized (uses ?), which PREVENTS SQL Injection.
-                # Entering ' OR 1=1-- will NOT work.
                 try:
                     conn = sqlite3.connect('fintech_app.db')
                     c = conn.cursor()
@@ -167,13 +217,12 @@ def show_login_page():
                 
                 # --- Test Case 9: Error Message Leakage ---
                 except sqlite3.Error as e:
-                    # We show a generic error, not the specific SQL error (e)
                     st.error("A database error occurred. Please try again later.")
                     log_activity(username, f"Database error during login: {e}")
 
 
     with col2:
-        st.header("Register")
+        st.header("Register ✍️")
         with st.form("register_form"):
             reg_username = st.text_input("Choose Username")
             reg_email = st.text_input("Email")
@@ -224,10 +273,32 @@ def show_login_page():
 
 def show_dashboard():
     st.title(f"Welcome to your Dashboard, {st.session_state.username}! 👋")
-    st.write("This is your secure FinTech application dashboard.")
+    st.caption("This is your secure FinTech application dashboard.")
     
-    st.subheader("Quick Actions")
-    st.info("Use the navigation on the left to manage your profile, view transactions, or see activity logs.")
+    # --- NEW: Interactive Metrics ---
+    try:
+        conn = sqlite3.connect('fintech_app.db')
+        c = conn.cursor()
+        # Get transaction count
+        c.execute("SELECT COUNT(*) FROM transactions WHERE username = ?", (st.session_state.username,))
+        tx_count = c.fetchone()[0]
+        
+        # Get last log action
+        c.execute("SELECT action FROM audit_logs WHERE username = ? ORDER BY timestamp DESC LIMIT 1", (st.session_state.username,))
+        last_log = c.fetchone()
+        last_action = last_log[0] if last_log else "No activity"
+    except Exception as e:
+        tx_count = "N/A"
+        last_action = "Error"
+    finally:
+        if conn:
+            conn.close()
+
+    col1, col2 = st.columns(2)
+    col1.metric("Total Transactions", f"{tx_count}")
+    col2.metric("Last Logged Action", f"{last_action}")
+    st.divider()
+    # --- End of New Section ---
 
     st.subheader("Security Test Zone")
     st.warning("Test 17: Secure Error Handling")
@@ -238,8 +309,7 @@ def show_dashboard():
             # --- Test Case 17: Secure Error Handling ---
             x = 10 / 0 # Force a divide-by-zero error
         except ZeroDivisionError as e:
-            # We catch the specific error and show a generic message,
-            # not the stack trace.
+            # We catch the specific error and show a generic message
             st.error("An unexpected operation failed. The app did not crash.")
             log_activity(st.session_state.username, "Simulated divide-by-zero error")
 
@@ -250,7 +320,6 @@ def show_profile_page():
         conn = sqlite3.connect('fintech_app.db')
         c = conn.cursor()
         # --- Test Case 14: Data Modification Attempt ---
-        # We fetch data ONLY for the logged-in user, preventing Insecure Direct Object Reference (IDOR)
         c.execute("SELECT full_name, email, secret_note_encrypted FROM users WHERE username = ?", 
                   (st.session_state.username,))
         user_data = c.fetchone()
@@ -273,7 +342,7 @@ def show_profile_page():
             email = st.text_input("Email", value=current_email)
             
             # --- Test Case 7 & 18: Encryption / Decryption Option ---
-            st.subheader("Secure Encrypted Note")
+            st.subheader("Secure Encrypted Note 🤫")
             st.write("This data is stored encrypted in the database.")
             secret_note = st.text_area("Your Secret Note", value=decrypted_note)
             
@@ -290,7 +359,10 @@ def show_profile_page():
                         WHERE username = ? 
                     """, (full_name, email, encrypted_note_to_save, st.session_state.username))
                     conn.commit()
-                    st.success("Profile updated successfully!")
+                    
+                    # --- NEW: Toast Notification ---
+                    st.toast("Profile updated successfully!", icon="🎉")
+                    
                     log_activity(st.session_state.username, "User updated profile")
                     
                     # --- Test Case 3: Special Character Input (XSS) ---
@@ -311,12 +383,11 @@ def show_transactions_page():
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.header("Add New Transaction")
+        st.header("Add New Transaction ➕")
         with st.form("transaction_form"):
             trans_type = st.selectbox("Type", ["Deposit", "Withdrawal"])
             
             # --- Test Case 12: Number Field Validation ---
-            # st.number_input automatically rejects non-numeric characters.
             amount = st.number_input("Amount", min_value=0.01, format="%.2f")
             
             # --- Test Case 19: Input Encoding (Emoji) ---
@@ -342,7 +413,10 @@ def show_transactions_page():
                                   (st.session_state.username, trans_type, amount, description))
                         conn.commit()
                         conn.close()
-                        st.success(f"{trans_type} of ${amount:.2f} recorded.")
+                        
+                        # --- NEW: Toast Notification ---
+                        st.toast(f"{trans_type} of ${amount:.2f} recorded.", icon="✅")
+                        
                         log_activity(st.session_state.username, f"Added transaction: {trans_type} ${amount}")
                         
                         if uploaded_file is not None:
@@ -353,7 +427,7 @@ def show_transactions_page():
                         log_activity(st.session_state.username, f"DB error on transaction: {e}")
 
     with col2:
-        st.header("Transaction History")
+        st.header("Transaction History 📊")
         try:
             conn = sqlite3.connect('fintech_app.db')
             # Load transactions only for the logged-in user
@@ -367,12 +441,11 @@ def show_transactions_page():
 
 def show_activity_log_page():
     st.title("Audit & Activity Logs 📜")
-    st.write("This log tracks all security-sensitive actions in the application.")
+    st.write("This log tracks all security-sensitive actions in your account.")
     
     try:
         conn = sqlite3.connect('fintech_app.db')
-        # In a real app, only an ADMIN should see all logs.
-        # For this assignment, we show logs for the current user.
+        # Show logs only for the current user.
         df = pd.read_sql_query("SELECT timestamp, username, action FROM audit_logs WHERE username = ? ORDER BY timestamp DESC",
                                conn, params=(st.session_state.username,))
         conn.close()
@@ -384,6 +457,9 @@ def show_activity_log_page():
 # --- MAIN APP LOGIC ---
 
 def main():
+    # --- NEW: Load Custom CSS ---
+    load_css()
+
     # Initialize the database
     init_db()
 
@@ -401,8 +477,6 @@ def main():
         st.sidebar.image("https://i.imgur.com/v801b6n.png", width=100) # A generic logo
         
         # --- Test Case 5: Session Expiry ---
-        # Streamlit's session_state doesn't expire on idle by default.
-        # This is a known limitation. We add a note and a manual logout.
         st.sidebar.info("Note: Streamlit sessions do not auto-expire on idle. Please log out manually.")
 
         # --- Test Case 6: Logout Functionality ---
@@ -414,16 +488,18 @@ def main():
             st.rerun()
 
         st.sidebar.title("Navigation")
-        page = st.sidebar.radio("Go to", 
-                                ["Dashboard", "My Profile", "Transactions", "Activity Log"])
+        # --- NEW: Added icons to navigation ---
+        page_selection = st.sidebar.radio("Go to", 
+                                ["Dashboard 🏠", "My Profile 👤", "Transactions 💸", "Activity Log 📜"])
 
-        if page == "Dashboard":
+        # Check which page was selected and show it
+        if page_selection.startswith("Dashboard"):
             show_dashboard()
-        elif page == "My Profile":
+        elif page_selection.startswith("My Profile"):
             show_profile_page()
-        elif page == "Transactions":
+        elif page_selection.startswith("Transactions"):
             show_transactions_page()
-        elif page == "Activity Log":
+        elif page_selection.startswith("Activity Log"):
             show_activity_log_page()
 
 if __name__ == "__main__":
