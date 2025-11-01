@@ -3,7 +3,7 @@
 import streamlit as st
 import sqlite3
 import bcrypt  # For password hashing (pip install bcrypt)
-import re      # For regex (password/email validation)
+import re  # For regex (password/email validation)
 import pandas as pd
 from cryptography.fernet import Fernet  # For encryption (pip install cryptography)
 from datetime import datetime
@@ -14,7 +14,7 @@ from datetime import datetime
 st.set_page_config(page_title="MiniFin Secure App", layout="wide", page_icon="🛡️")
 
 # --- NEW: Define Timeout ---
-# Set the idle timeout to 5 minutes for the assignment
+# Set the idle timeout to 5 minutes
 IDLE_TIMEOUT_MINUTES = 5
 
 # Generate a secret key for encryption.
@@ -22,6 +22,7 @@ APP_ENCRYPTION_KEY = b'p_Z1c-PqM0g2xV8t9y-J_uA6wB5nE1oI_zS4cQ7kR3g='
 cipher_suite = Fernet(APP_ENCRYPTION_KEY)
 
 # --- THEME & STYLING (High Contrast: Dark BG, Light Cards) ---
+
 
 def load_css():
     """Injects custom CSS for a high-contrast theme."""
@@ -118,7 +119,7 @@ button[kind="secondary"]:hover,
     box-shadow: 0 6px 12px rgba(0,0,0,0.15);
     opacity: 0.9;
 }
-       
+        
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
@@ -169,11 +170,12 @@ def init_db():
     conn.close()
 
 # --- HELPER FUNCTIONS (SECURITY & LOGGING) ---
-# (These functions are unchanged to ensure security is maintained)
+
 
 def hash_password(password):
     """Hashes a password using bcrypt."""
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+
 
 def check_password(password, hashed):
     """Checks if a password matches its hash."""
@@ -181,6 +183,7 @@ def check_password(password, hashed):
         return bcrypt.checkpw(password.encode('utf-8'), hashed)
     except (ValueError, TypeError):
         return False
+
 
 def is_strong_password(password):
     """Validates password strength (min 8 chars, 1 upper, 1 lower, 1 digit, 1 symbol)."""
@@ -196,9 +199,11 @@ def is_strong_password(password):
         return False, "Password must contain a special symbol."
     return True, "Password is strong."
 
+
 def is_valid_email(email):
     """Simple email regex validation."""
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
+
 
 def log_activity(username, action):
     """Logs a user action to the audit_logs table."""
@@ -210,11 +215,13 @@ def log_activity(username, action):
         conn.commit()
         conn.close()
     except sqlite3.Error as e:
-        st.warning(f"Failed to log activity: {e}") # Non-critical error
+        st.warning(f"Failed to log activity: {e}")  # Non-critical error
+
 
 def encrypt_data(data):
     """Encrypts data using the app key."""
     return cipher_suite.encrypt(data.encode('utf-8'))
+
 
 def decrypt_data(encrypted_data):
     """Decrypts data using the app key."""
@@ -223,6 +230,41 @@ def decrypt_data(encrypted_data):
     except Exception:
         return "Failed to decrypt (data may be corrupted or key is wrong)"
 
+# --- NEW: TIMEOUT FUNCTION ---
+
+def check_session_timeout():
+    """Checks if the user has been idle for too long and logs them out."""
+    
+    # Check if user is authenticated and if last_activity is set
+    if 'authenticated' in st.session_state and st.session_state.authenticated and 'last_activity' in st.session_state:
+        
+        # Calculate time difference
+        idle_duration = datetime.now() - st.session_state.last_activity
+        
+        # Check if idle duration exceeds the timeout (in seconds)
+        if idle_duration.total_seconds() > (IDLE_TIMEOUT_MINUTES * 60):
+            
+            # Log the timeout event before clearing session
+            username = st.session_state.username
+            log_activity(username, "Session timed out due to inactivity")
+            
+            # Clear all session state keys to log the user out
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+                
+            # Set a message to show on the login page
+            st.session_state.timeout_message = f"You have been logged out due to {IDLE_TIMEOUT_MINUTES} minutes of inactivity."
+            
+            # Rerun the app to force redirect to login page
+            st.rerun()
+            
+        else:
+            # If not timed out, update the last activity time to now
+            st.session_state.last_activity = datetime.now()
+
+# --- END OF NEW FUNCTION ---
+
+
 # --- PAGE FUNCTIONS ---
 
 def show_login_page():
@@ -230,6 +272,12 @@ def show_login_page():
     
     st.title("Welcome to MiniFin 🛡️")
     st.caption("A secure FinTech demo app for BSFT-7")
+    
+    # --- NEW: Show timeout message if it exists ---
+    if 'timeout_message' in st.session_state:
+        st.warning(st.session_state.timeout_message)
+        del st.session_state.timeout_message # Clear it after showing
+    # --- END OF NEW SECTION ---
     
     col1, col2 = st.columns(2)
 
@@ -241,7 +289,8 @@ def show_login_page():
             st.session_state.login_attempts = 0
             
         if st.session_state.login_attempts >= 5:
-            st.error("Too many failed login attempts. Your account is temporarily locked.")
+            st.error(
+                "Too many failed login attempts. Your account is temporarily locked.")
             return
 
         with st.form("login_form"):
@@ -254,7 +303,8 @@ def show_login_page():
                 try:
                     conn = sqlite3.connect('fintech_app.db')
                     c = conn.cursor()
-                    c.execute("SELECT password_hash FROM users WHERE username = ?", (username,))
+                    c.execute(
+                        "SELECT password_hash FROM users WHERE username = ?", (username,))
                     user_data = c.fetchone()
                     conn.close()
 
@@ -262,19 +312,24 @@ def show_login_page():
                         st.success("Login Successful!")
                         st.session_state.authenticated = True
                         st.session_state.username = username
-                        st.session_state.login_attempts = 0 # Reset on success
+                        st.session_state.login_attempts = 0  # Reset on success
+                        
+                        # --- NEW: Set last activity time on login ---
+                        st.session_state.last_activity = datetime.now()
+                        
                         log_activity(username, "User logged in")
-                        st.rerun() # Rerun to show the main app
+                        st.rerun()  # Rerun to show the main app
                     else:
                         st.session_state.login_attempts += 1
-                        log_activity(username, f"Failed login attempt ({st.session_state.login_attempts})")
+                        log_activity(
+                            username, f"Failed login attempt ({st.session_state.login_attempts})")
                         st.error("Invalid username or password.")
                 
                 # --- Test Case 9: Error Message Leakage ---
                 except sqlite3.Error as e:
-                    st.error("A database error occurred. Please try again later.")
+                    st.error(
+                        "A database error occurred. Please try again later.")
                     log_activity(username, f"Database error during login: {e}")
-
 
     with col2:
         st.header("Register ✍️")
@@ -282,7 +337,8 @@ def show_login_page():
             reg_username = st.text_input("Choose Username")
             reg_email = st.text_input("Email")
             reg_password = st.text_input("Create Password", type="password")
-            reg_confirm_password = st.text_input("Confirm Password", type="password")
+            reg_confirm_password = st.text_input(
+                "Confirm Password", type="password")
             register_button = st.form_submit_button("Register")
 
             if register_button:
@@ -296,7 +352,8 @@ def show_login_page():
                 
                 # --- Test Case 2: Password Strength ---
                 elif not is_strong_password(reg_password)[0]:
-                    st.warning(f"Password is not strong: {is_strong_password(reg_password)[1]}")
+                    st.warning(
+                        f"Password is not strong: {is_strong_password(reg_password)[1]}")
                 
                 # --- Test Case 15: Email Validation ---
                 elif not is_valid_email(reg_email):
@@ -308,23 +365,29 @@ def show_login_page():
                         c = conn.cursor()
                         
                         # --- Test Case 11: Duplicate User Registration ---
-                        c.execute("SELECT id FROM users WHERE username = ?", (reg_username,))
+                        c.execute(
+                            "SELECT id FROM users WHERE username = ?", (reg_username,))
                         if c.fetchone():
-                            st.warning("Username already exists. Please choose another one.")
+                            st.warning(
+                                "Username already exists. Please choose another one.")
                         else:
                             hashed_pass = hash_password(reg_password)
                             c.execute("INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)",
                                       (reg_username, hashed_pass, reg_email))
                             conn.commit()
-                            st.success("Registration successful! You can now log in.")
+                            st.success(
+                                "Registration successful! You can now log in.")
                             log_activity(reg_username, "User registered")
                     
                     # --- Test Case 9: Error Message Leakage ---
                     except sqlite3.Error as e:
-                        st.error("A database error occurred during registration.")
-                        log_activity(reg_username, f"Database error during registration: {e}")
+                        st.error(
+                            "A database error occurred during registration.")
+                        log_activity(
+                            reg_username, f"Database error during registration: {e}")
                     finally:
                         conn.close()
+
 
 def show_dashboard():
     st.title(f"Welcome to your Dashboard, {st.session_state.username}! 👋")
@@ -335,11 +398,13 @@ def show_dashboard():
         conn = sqlite3.connect('fintech_app.db')
         c = conn.cursor()
         # Get transaction count
-        c.execute("SELECT COUNT(*) FROM transactions WHERE username = ?", (st.session_state.username,))
+        c.execute("SELECT COUNT(*) FROM transactions WHERE username = ?",
+                  (st.session_state.username,))
         tx_count = c.fetchone()[0]
         
         # Get last log action
-        c.execute("SELECT action FROM audit_logs WHERE username = ? ORDER BY timestamp DESC LIMIT 1", (st.session_state.username,))
+        c.execute("SELECT action FROM audit_logs WHERE username = ? ORDER BY timestamp DESC LIMIT 1",
+                  (st.session_state.username,))
         last_log = c.fetchone()
         last_action = last_log[0] if last_log else "No activity"
     except Exception as e:
@@ -358,16 +423,19 @@ def show_dashboard():
 
     st.subheader("Security Test Zone")
     st.warning("Test 17: Secure Error Handling")
-    st.write("Click the button below to simulate an internal server error (Divide by Zero).")
+    st.write(
+        "Click the button below to simulate an internal server error (Divide by Zero).")
     
     if st.button("Simulate Error"):
         try:
             # --- Test Case 17: Secure Error Handling ---
-            x = 10 / 0 # Force a divide-by-zero error
+            x = 10 / 0  # Force a divide-by-zero error
         except ZeroDivisionError as e:
             # We catch the specific error and show a generic message
             st.error("An unexpected operation failed. The app did not crash.")
-            log_activity(st.session_state.username, "Simulated divide-by-zero error")
+            log_activity(st.session_state.username,
+                         "Simulated divide-by-zero error")
+
 
 def show_profile_page():
     st.title("Manage Your Profile 👤")
@@ -376,7 +444,7 @@ def show_profile_page():
         conn = sqlite3.connect('fintech_app.db')
         c = conn.cursor()
         # --- Test Case 14: Data Modification Attempt ---
-        c.execute("SELECT full_name, email, secret_note_encrypted FROM users WHERE username = ?", 
+        c.execute("SELECT full_name, email, secret_note_encrypted FROM users WHERE username = ?",
                   (st.session_state.username,))
         user_data = c.fetchone()
         
@@ -390,10 +458,12 @@ def show_profile_page():
 
         # The [data-testid="stForm"] style from load_css() will apply here
         with st.form("profile_update_form"):
-            st.write(f"**Username:** `{st.session_state.username}` (cannot be changed)")
+            st.write(
+                f"**Username:** `{st.session_state.username}` (cannot be changed)")
             
             # --- Test Case 10: Input Length Validation ---
-            full_name = st.text_input("Full Name", value=current_full_name, max_chars=100)
+            full_name = st.text_input(
+                "Full Name", value=current_full_name, max_chars=100)
             
             # --- Test Case 15: Email Validation ---
             email = st.text_input("Email", value=current_email)
@@ -419,18 +489,22 @@ def show_profile_page():
                     
                     st.toast("Profile updated successfully!", icon="🎉")
                     
-                    log_activity(st.session_state.username, "User updated profile")
+                    log_activity(st.session_state.username,
+                                 "User updated profile")
                     
                     # --- Test Case 3: Special Character Input (XSS) ---
                     st.subheader("Testing Cross-Site Scripting (XSS):")
-                    st.write("If you entered `<script>alert(1)</script>` in your name, you should see the *text* below, not an alert box. Streamlit auto-sanitizes this output.")
-                    st.markdown(f"**Updated Name Displayed:** {full_name}")
+                    st.write(
+                        "If you entered `<script>alert(1)</script>` in your name, you should see the *text* below, not an alert box. Streamlit auto-sanitizes this output.")
+                    st.markdown(
+                        f"**Updated Name Displayed:** {full_name}")
 
         conn.close()
 
     except sqlite3.Error as e:
         st.error("A database error occurred.")
-        log_activity(st.session_state.username, f"Database error on profile page: {e}")
+        log_activity(st.session_state.username,
+                     f"Database error on profile page: {e}")
 
 
 def show_transactions_page():
@@ -448,7 +522,8 @@ def show_transactions_page():
             amount = st.number_input("Amount", min_value=0.01, format="%.2f")
             
             # --- Test Case 19: Input Encoding (Emoji) ---
-            description = st.text_area("Description (Try using Emojis! 😊)")
+            description = st.text_area(
+                "Description (Try using Emojis! 😊)")
             
             # --- Test Case 8: File Upload Validation ---
             st.subheader("Upload Receipt (Optional)")
@@ -471,29 +546,36 @@ def show_transactions_page():
                         conn.commit()
                         conn.close()
                         
-                        st.toast(f"{trans_type} of ${amount:.2f} recorded.", icon="✅")
+                        st.toast(
+                            f"{trans_type} of ${amount:.2f} recorded.", icon="✅")
                         
-                        log_activity(st.session_state.username, f"Added transaction: {trans_type} ${amount}")
+                        log_activity(
+                            st.session_state.username, f"Added transaction: {trans_type} ${amount}")
                         
                         if uploaded_file is not None:
-                            st.info(f"File '{uploaded_file.name}' was uploaded successfully (test passed).")
+                            st.info(
+                                f"File '{uploaded_file.name}' was uploaded successfully (test passed).")
                     
                     except sqlite3.Error as e:
-                        st.error("A database error occurred while adding the transaction.")
-                        log_activity(st.session_state.username, f"DB error on transaction: {e}")
+                        st.error(
+                            "A database error occurred while adding the transaction.")
+                        log_activity(
+                            st.session_state.username, f"DB error on transaction: {e}")
 
     with col2:
         st.header("Transaction History 📊")
         try:
             conn = sqlite3.connect('fintech_app.db')
             # Load transactions only for the logged-in user
-            df = pd.read_sql_query("SELECT type, amount, description FROM transactions WHERE username = ?", 
+            df = pd.read_sql_query("SELECT type, amount, description FROM transactions WHERE username = ?",
                                    conn, params=(st.session_state.username,))
             conn.close()
             st.dataframe(df, use_container_width=True)
         except Exception as e:
             st.error("Could not load transaction history.")
-            log_activity(st.session_state.username, f"Error loading history: {e}")
+            log_activity(st.session_state.username,
+                         f"Error loading history: {e}")
+
 
 def show_activity_log_page():
     st.title("Audit & Activity Logs 📜")
@@ -526,9 +608,22 @@ def main():
     # --- Test Case 4: Unauthorized Access ---
     if not st.session_state.authenticated:
         # If user is not logged in, show the login page
+        
+        # --- MODIFIED: Check for and show timeout message ---
+        if 'timeout_message' in st.session_state:
+            st.warning(st.session_state.timeout_message)
+            del st.session_state.timeout_message # Clear it after showing
+        # --- END OF MODIFICATION ---
+
         show_login_page()
     else:
         # If user is logged in, show the main app
+        
+        # --- NEW: CHECK FOR TIMEOUT FIRST ---
+        # Check for inactivity on every interaction
+        check_session_timeout()
+        # --- END OF NEW SECTION ---
+        
         
         # --- NEW: SVG Logo (Replaces broken image link) ---
         # This is a self-contained SVG, so it requires no external files.
@@ -553,21 +648,20 @@ def main():
         st.sidebar.header(f"**{st.session_state.username}**")
         st.sidebar.divider()
         
-        # --- Test Case 5: Session Expiry ---
-        st.sidebar.info("Note: Streamlit sessions do not auto-expire on idle. Please log out manually.")
+        # --- Test Case 5: Session Expiry (REMOVED STATIC TEXT) ---
 
         # --- Test Case 6: Logout Functionality ---
         if st.sidebar.button("Logout"):
             log_activity(st.session_state.username, "User logged out")
-            st.session_state.authenticated = False
-            st.session_state.username = None
-            st.session_state.login_attempts = 0 # Reset attempts on logout
+            # Clear all session state keys on manual logout
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.rerun()
 
         st.sidebar.title("Navigation")
         # --- Added icons to navigation ---
-        page_selection = st.sidebar.radio("Go to", 
-                                ["Dashboard 🏠", "My Profile 👤", "Transactions 💸", "Activity Log 📜"])
+        page_selection = st.sidebar.radio("Go to",
+                                          ["Dashboard 🏠", "My Profile 👤", "Transactions 💸", "Activity Log 📜"])
 
         # Check which page was selected and show it
         if page_selection.startswith("Dashboard"):
@@ -579,6 +673,6 @@ def main():
         elif page_selection.startswith("Activity Log"):
             show_activity_log_page()
 
+
 if __name__ == "__main__":
     main()
-
