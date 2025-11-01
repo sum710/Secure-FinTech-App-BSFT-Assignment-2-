@@ -17,49 +17,59 @@ st.set_page_config(page_title="MiniFin Secure App", layout="wide", page_icon="ðŸ
 APP_ENCRYPTION_KEY = b'p_Z1c-PqM0g2xV8t9y-J_uA6wB5nE1oI_zS4cQ7kR3g='
 cipher_suite = Fernet(APP_ENCRYPTION_KEY)
 
-# --- THEME & STYLING (NEW!) ---
+# --- THEME & STYLING (NEW DARK MODE!) ---
 
 def load_css():
-    """Injects custom CSS for a modern, professional 'FinTech' theme."""
+    """Injects custom CSS for a modern, 'FinTech' dark mode theme."""
     css = """
     <style>
-        /* Main Page Background: Light, professional grey-blue */
+        /* Main Page Background: Dark blue-grey */
         [data-testid="stAppViewContainer"] {
-            background-color: #F0F4F8;
+            background-color: #1A202C;
+            color: #E2E8F0; /* Default text color */
         }
 
-        /* Sidebar: Clean white, with a subtle border */
+        /* Sidebar: Lighter dark color */
         [data-testid="stSidebar"] {
-            background-color: #FFFFFF;
-            border-right: 1px solid #E0E0E0;
+            background-color: #2D3748;
+            border-right: 1px solid #4A5568;
         }
 
-        /* Titles: Strong, dark professional blue */
+        /* Titles: Light, prominent blue */
         h1, h2 {
-            color: #0D47A1;
+            color: #79C0FF;
         }
 
-        /* Form & Metric "Cards": White, with a cleaner shadow and border */
+        /* All other text (paragraphs, labels) */
+        body, .stApp, [data-testid="stMarkdown"] {
+            color: #E2E8F0;
+        }
+
+        /* Form & Metric "Cards": Lighter dark, with a light border */
         [data-testid="stForm"], [data-testid="stMetric"] {
-            background-color: #FFFFFF;
+            background-color: #2D3748;
             border-radius: 12px;
             padding: 25px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.07);
-            border: 1px solid #EAEAEA;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 1px solid #4A5568;
         }
         
-        /* Ensure metric cards have a consistent height */
+        /* Ensure metric cards have a consistent height and light text */
         [data-testid="stMetric"] {
              padding: 20px;
         }
+        [data-testid="stMetricLabel"], [data-testid="stMetricValue"] {
+            color: #E2E8F0;
+        }
 
-        /* Custom Button Style: Refined blue gradient */
+        /* Custom Button Style: Bright gradient to 'pop' on dark background */
         .stButton > button {
             border: none;
             border-radius: 8px;
             padding: 10px 24px;
             color: white;
-            background: linear-gradient(90deg, #0D47A1, #1976D2);
+            /* New gradient: Blue to Green */
+            background: linear-gradient(90deg, #1976D2, #38A169);
             transition: all 0.3s ease;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
@@ -225,6 +235,15 @@ def show_login_page():
                 except sqlite3.Error as e:
                     st.error("A database error occurred. Please try again later.")
                     log_activity(username, f"Database error during login: {e}")
+        
+        st.divider()
+        # --- NEW GIF ADDED ---
+        # You can change this GIF URL to any you like
+        st.image(
+            "https://user-images.githubusercontent.com/534431/133880443-c0b78c81-421f-46f1-80f0-327c51483321.gif",
+            caption="Secure Data Processing"
+        )
+        # --- END OF NEW GIF ---
 
 
     with col2:
@@ -481,19 +500,18 @@ def main():
     else:
         # If user is logged in, show the main app
         
-        # --- NEW: SVG Logo (Replaces broken image link) ---
-        # This is a self-contained SVG, so it requires no external files.
+        # --- NEW: SVG Logo (Replaced broken image link) ---
+        # This is a new "Secure Vault" SVG that fits the dark theme
         logo_svg = f"""
         <div style="display: flex; justify-content: center; padding-bottom: 10px;">
-            <svg width="90" height="90" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <svg width="100" height="100" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                     <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" style="stop-color:#0D47A1;stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:#1976D2;stop-opacity:1" />
+                        <stop offset="0%" style="stop-color:#1976D2;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#38A169;stop-opacity:1" />
                     </linearGradient>
                 </defs>
-                <path fill="url(#logoGradient)" d="M12 2L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-3z"/>
-                <path fill="#FFFFFF" d="M16.59 7.58L10 14.17l-3.59-3.58L5 12l5 5 8-8-1.41-1.42z"/>
+                <path fill="url(#logoGradient)" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5L12 1zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V11.99H5V6.3l7-3.11v8.8z"/>
             </svg>
         </div>
         """
